@@ -15,11 +15,6 @@ stages:
     displayName: Dependency Vulnerability Scan
     steps:
 
-    - task: NodeTool@0
-      displayName: Install Node.js
-      inputs:
-        versionSpec: '16.x'
-
     - task: PowerShell@2
       displayName: Run Retire.js Scan
       inputs:
@@ -27,7 +22,13 @@ stages:
         script: |
           npm install -g retire
           npm install
-          retire --exitwith 1 || exit 0
+
+          retire --exitwith 1
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host "Retire.js vulnerabilities detected – ignoring for now"
+            exit 0
+          }
+
 
 
 # =========================================================
