@@ -54,29 +54,27 @@ stages:
       displayName: JavaScript Linting (Biome)
       inputs:
         targetType: 'inline'
+        failOnStderr: false
         script: |
           Invoke-WebRequest `
             -Uri "https://github.com/biomejs/biome/releases/download/cli/v2.3.8/biome-win32-x64.exe" `
             -OutFile "$(Agent.ToolsDirectory)/biome.exe"
 
           & "$(Agent.ToolsDirectory)/biome.exe" lint "$(System.DefaultWorkingDirectory)/src/"
-           if ($LASTEXITCODE -ne 0) {
-            Write-Host "Biome lint issues found – ignoring"
+            Write-Host "Biome lint completed (non-blocking)"
             exit 0
-          }
 
     - task: PowerShell@2
       continueOnError: true
       displayName: CSS Linting (Stylelint)
       inputs:
         targetType: 'inline'
+        failOnStderr: false
         script: |
           npm install -g stylelint stylelint-config-standard
-          stylelint "$(System.DefaultWorkingDirectory)/src/**/*.css" || exit 0
-               if ($LASTEXITCODE -ne 0) {
-            Write-Host "Stylelint issues found – ignoring"
+          stylelint "$(System.DefaultWorkingDirectory)/src/**/*.css"
+            Write-Host "Stylelint completed (non-blocking)"
             exit 0
-          }
 
     - task: PowerShell@2
       continueOnError: true
