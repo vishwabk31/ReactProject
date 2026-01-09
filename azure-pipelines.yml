@@ -15,6 +15,11 @@ stages:
     displayName: Dependency Vulnerability Scan
     steps:
 
+    - task: NodeTool@0
+      displayName: Install Node.js
+      inputs:
+        versionSpec: '16.x'
+
     - task: PowerShell@2
       displayName: Run Retire.js Scan
       inputs:
@@ -28,8 +33,6 @@ stages:
             Write-Host "Retire.js vulnerabilities detected – ignoring for now"
             exit 0
           }
-
-
 
 # =========================================================
 # STAGE 2: CODE QUALITY & LINTING
@@ -46,7 +49,6 @@ stages:
       inputs:
         versionSpec: '16.x'
 
-    # ---------- JavaScript Lint (Biome) ----------
     - task: PowerShell@2
       continueOnError: true
       displayName: JavaScript Linting (Biome)
@@ -59,7 +61,6 @@ stages:
 
           & "$(Agent.ToolsDirectory)/biome.exe" lint "$(System.DefaultWorkingDirectory)/src/"
 
-    # ---------- CSS Lint (Stylelint) ----------
     - task: PowerShell@2
       continueOnError: true
       displayName: CSS Linting (Stylelint)
@@ -69,7 +70,6 @@ stages:
           npm install -g stylelint stylelint-config-standard
           stylelint "$(System.DefaultWorkingDirectory)/src/**/*.css"
 
-    # ---------- YAML Lint ----------
     - task: PowerShell@2
       continueOnError: true
       displayName: YAML Linting (yamllint)
@@ -79,7 +79,6 @@ stages:
           python -m pip install yamllint
           python -m yamllint "$(System.DefaultWorkingDirectory)"
 
-    # ---------- Markdown Lint ----------
     - task: PowerShell@2
       continueOnError: true
       displayName: Markdown Linting
@@ -88,7 +87,6 @@ stages:
         script: |
           npm install -g markdownlint-cli
           markdownlint "$(System.DefaultWorkingDirectory)"
-
 
 # =========================================================
 # STAGE 3: BUILD & ARTIFACT PUBLISH
