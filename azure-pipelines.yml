@@ -1,7 +1,8 @@
 trigger:
 - noon
 
-pool: vb26
+pool:
+  name: vb26
 
 stages:
 
@@ -14,7 +15,6 @@ stages:
   - job: DependencyVulnerabilityScan
     displayName: Dependency Vulnerability Scan
     steps:
-
     - task: NodeTool@0
       displayName: Install Node.js
       inputs:
@@ -39,6 +39,7 @@ stages:
 # =========================================================
 - stage: CodeQualityChecks
   displayName: Code Quality & Linting
+  dependsOn: SoftwareCompositionAnalysis
   jobs:
   - job: LintingChecks
     displayName: Linting Checks
@@ -49,58 +50,66 @@ stages:
       inputs:
         versionSpec: '16.x'
 
+    # ---------- BIOME ----------
     - task: PowerShell@2
-      continueOnError: true
       displayName: JavaScript Linting (Biome)
+      continueOnError: true
       inputs:
         targetType: 'inline'
-        failOnStderr: false
         script: |
+          Write-Host "Downloading Biome..."
+
           Invoke-WebRequest `
             -Uri "https://github.com/biomejs/biome/releases/download/cli/v2.3.8/biome-win32-x64.exe" `
-            -OutFile "$(Agent.ToolsDirectory)/biome.exe"
+            -OutFile "$(Agent.TempDirectory)\biome.exe"
 
-          & "$(Agent.ToolsDirectory)/biome.exe" lint "$(System.DefaultWorkingDirectory)/src/"
-            Write-Host "Biome lint completed (non-blocking)"
-            exit 0
+          & "$(Agent.TempDirectory)\biome.exe" lint "$(System.DefaultWorkingDirectory)\src" || $true
 
+          Write-Host "Biome lint completed (non-blocking)"
+          exit 0
+
+    # ---------- STYLELINT ----------
     - task: PowerShell@2
-      continueOnError: true
       displayName: CSS Linting (Stylelint)
+      continueOnError: true
       inputs:
         targetType: 'inline'
-        failOnStderr: false
         script: |
           npm install -g stylelint stylelint-config-standard
-          stylelint "$(System.DefaultWorkingDirectory)/src/**/*.css"
-            Write-Host "Stylelint completed (non-blocking)"
-            exit 0
+          stylelint "$(System.DefaultWorkingDirectory)\src\**\*.css" || $true
+          Write-Host "Stylelint completed (non-blocking)"
+          exit 0
 
+    # ---------- YAML LINT ----------
     - task: PowerShell@2
+      displayName: YAML Linting
       continueOnError: true
-      displayName: YAML Linting (yamllint)
       inputs:
         targetType: 'inline'
         script: |
           python -m pip install yamllint
-          python -m yamllint "$(System.DefaultWorkingDirectory)"
-          if ($LASTEXITCODE -ne 0) { exit 0 }
+          yamllint "$(System.DefaultWorkingDirectory)" || $true
+          Write-Host "Yamllint completed (non-blocking)"
+          exit 0
 
+    # ---------- MARKDOWN ----------
     - task: PowerShell@2
-      continueOnError: true
       displayName: Markdown Linting
+      continueOnError: true
       inputs:
         targetType: 'inline'
         script: |
           npm install -g markdownlint-cli
-          markdownlint "$(System.DefaultWorkingDirectory)"
-          if ($LASTEXITCODE -ne 0) { exit 0 }
+          markdownlint "$(System.DefaultWorkingDirectory)" || $true
+          Write-Host "Markdown lint completed (non-blocking)"
+          exit 0
 
 # =========================================================
 # STAGE 3: BUILD & ARTIFACT PUBLISH
 # =========================================================
 - stage: BuildAndPackage
   displayName: Build & Package
+  dependsOn: CodeQualityChecks
   jobs:
   - job: ApplicationBuild
     displayName: Application Build
@@ -128,6 +137,6 @@ stages:
     - task: PublishPipelineArtifact@1
       displayName: Publish Build Artifact
       inputs:
-        targetPath: '$(System.DefaultWorkingDirectory)/build'
+        targetPath: '$(System.DefaultWorkingDirectory)\build'
         artifact: 'todo-ui'
         publishLocation: 'pipeline'
