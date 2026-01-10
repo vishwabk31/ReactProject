@@ -158,7 +158,7 @@ stages:
         sshEndpoint: 'vb26'
         sourceFolder: '$(System.DefaultWorkingDirectory)/build_artifacts'
         contents: '**'
-        targetFolder: '/home/devopsadmin/'
+        targetFolder: '/home/Vishwa/'
         cleanTargetFolder: true
         readyTimeout: '20000'
 
@@ -166,5 +166,5 @@ stages:
       inputs:
         sshEndpoint: 'vb26'
         runOptions: 'commands'
-        commands: 'sudo cp -r /home/devopsadmin/* /var/www/html'
+        commands: 'sudo cp -r /home/Vishwa/* /var/www/html'
         readyTimeout: '20000'        
