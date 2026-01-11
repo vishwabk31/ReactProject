@@ -155,7 +155,7 @@ stages:
 
     - task: CopyFilesOverSSH@0
       inputs:
-        sshEndpoint: 'vb26'
+        sshEndpoint: 'dev-vm'
         sourceFolder: '$(System.DefaultWorkingDirectory)/build_artifacts'
         contents: '**'
         targetFolder: '/home/Vishwa/'
@@ -164,7 +164,7 @@ stages:
 
     - task: SSH@0
       inputs:
-        sshEndpoint: 'vb26'
+        sshEndpoint: 'dev-vm'
         runOptions: 'commands'
         commands: 'sudo cp -r /home/Vishwa/* /var/www/html'
         readyTimeout: '20000'        
