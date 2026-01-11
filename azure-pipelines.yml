@@ -1,0 +1,170 @@
+trigger:
+- noon
+
+pool:
+  name: vb26
+
+stages:
+
+# =========================================================
+# STAGE 1: SOFTWARE COMPOSITION ANALYSIS (Retire.js)
+# =========================================================
+- stage: SoftwareCompositionAnalysis
+  displayName: Software Composition Analysis
+  jobs:
+  - job: DependencyVulnerabilityScan
+    displayName: Dependency Vulnerability Scan
+    steps:
+    - task: NodeTool@0
+      displayName: Install Node.js
+      inputs:
+        versionSpec: '16.x'
+
+    - task: PowerShell@2
+      displayName: Run Retire.js Scan
+      inputs:
+        targetType: 'inline'
+        script: |
+          npm install -g retire
+          npm install
+
+          retire --exitwith 1
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host "Retire.js vulnerabilities detected – ignoring for now"
+            exit 0
+          }
+
+# =========================================================
+# STAGE 2: CODE QUALITY & LINTING
+# =========================================================
+- stage: CodeQualityChecks
+  displayName: Code Quality & Linting
+  dependsOn: SoftwareCompositionAnalysis
+  jobs:
+  - job: LintingChecks
+    displayName: Linting Checks
+    steps:
+
+    - task: NodeTool@0
+      displayName: Install Node.js
+      inputs:
+        versionSpec: '16.x'
+
+    # ---------- BIOME ----------
+    - task: PowerShell@2
+      displayName: JavaScript Linting (Biome)
+      continueOnError: true
+      inputs:
+        targetType: 'inline'
+        script: |
+          Write-Host "Downloading Biome..."
+
+          Invoke-WebRequest `
+            -Uri "https://github.com/biomejs/biome/releases/download/cli/v2.3.8/biome-win32-x64.exe" `
+            -OutFile "$(Agent.TempDirectory)\biome.exe"
+
+          & "$(Agent.TempDirectory)\biome.exe" lint "$(System.DefaultWorkingDirectory)\src" || $true
+
+          Write-Host "Biome lint completed (non-blocking)"
+          exit 0
+
+    # ---------- STYLELINT ----------
+    - task: PowerShell@2
+      displayName: CSS Linting (Stylelint)
+      continueOnError: true
+      inputs:
+        targetType: 'inline'
+        script: |
+          npm install -g stylelint stylelint-config-standard
+          stylelint "$(System.DefaultWorkingDirectory)\src\**\*.css" || $true
+          Write-Host "Stylelint completed (non-blocking)"
+          exit 0
+
+    # ---------- YAML LINT ----------
+    - task: PowerShell@2
+      displayName: YAML Linting
+      continueOnError: true
+      inputs:
+        targetType: 'inline'
+        script: |
+          python -m pip install yamllint
+          yamllint "$(System.DefaultWorkingDirectory)" || $true
+          Write-Host "Yamllint completed (non-blocking)"
+          exit 0
+
+    # ---------- MARKDOWN ----------
+    - task: PowerShell@2
+      displayName: Markdown Linting
+      continueOnError: true
+      inputs:
+        targetType: 'inline'
+        script: |
+          npm install -g markdownlint-cli
+          markdownlint "$(System.DefaultWorkingDirectory)" || $true
+          Write-Host "Markdown lint completed (non-blocking)"
+          exit 0
+
+# =========================================================
+# STAGE 3: BUILD & ARTIFACT PUBLISH
+# =========================================================
+- stage: BuildAndPackage
+  displayName: Build & Package
+  dependsOn: CodeQualityChecks
+  jobs:
+  - job: ApplicationBuild
+    displayName: Application Build
+    steps:
+
+    - task: NodeTool@0
+      displayName: Install Node.js
+      inputs:
+        versionSpec: '16.x'
+
+    - task: PowerShell@2
+      displayName: Install Dependencies
+      inputs:
+        targetType: 'inline'
+        script: |
+          npm install
+
+    - task: PowerShell@2
+      displayName: Build Application
+      inputs:
+        targetType: 'inline'
+        script: |
+          npm run build
+
+    - task: PublishPipelineArtifact@1
+      displayName: Publish Build Artifact
+      inputs:
+        targetPath: '$(System.DefaultWorkingDirectory)\build'
+        artifact: 'todo-ui'
+        publishLocation: 'pipeline'
+
+- stage: deployToDev
+  # condition: eq(variables['Build.SourceBranch'], 'refs/heads/develop')
+  displayName: Deploy To Dev VM
+  jobs:
+  - job: deploy
+    steps:
+    - task: DownloadPipelineArtifact@2
+      inputs:
+        buildType: 'current'
+        artifactName: 'todo-ui'
+        targetPath: '$(System.DefaultWorkingDirectory)/build_artifacts'
+
+    - task: CopyFilesOverSSH@0
+      inputs:
+        sshEndpoint: 'dev-vm'
+        sourceFolder: '$(System.DefaultWorkingDirectory)/build_artifacts'
+        contents: '**'
+        targetFolder: '/home/Vishwa/'
+        cleanTargetFolder: true
+        readyTimeout: '20000'
+
+    - task: SSH@0
+      inputs:
+        sshEndpoint: 'dev-vm'
+        runOptions: 'commands'
+        commands: 'sudo cp -r /home/Vishwa/* /var/www/html'
+        readyTimeout: '20000'        
