@@ -167,4 +167,33 @@ stages:
         sshEndpoint: 'dev-vm'
         runOptions: 'commands'
         commands: 'sudo cp -r /home/Vishwa/* /var/www/html'
-        readyTimeout: '20000'        
+        readyTimeout: '20000'   
+
+        
+# - stage: deployToDev
+#   displayName: Deploy to Dev
+#   dependsOn: BuildAndPackage
+#   jobs:
+#   - deployment: deploytovm
+#     environment:
+#       name: dev
+#       # resourceName: vb-vm1
+#       resourceType: virtualMachine
+#     strategy:
+#       runOnce:
+#         deploy:
+#           steps:
+
+#           - task: DownloadPipelineArtifact@2
+#             displayName: Download UI Artifact
+#             inputs:
+#               artifact: 'todo-ui'
+#               path: '$(Pipeline.Workspace)/todo-ui'
+
+#           - task: Bash@3
+#             displayName: Copy files to Nginx
+#             inputs:
+#               targetType: 'inline'
+#               script: |
+#                 sudo rm -rf /var/www/html/*
+#                 sudo cp -r $(Pipeline.Workspace)/todo-ui/* /var/www/html/
