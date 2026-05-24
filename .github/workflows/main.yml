@@ -1,4 +1,4 @@
-name: Vishwa
+name: React CI Pipeline
 
 on:
   push:
@@ -6,23 +6,22 @@ on:
       - main
 
 jobs:
-  Deployment:
-    runs-on: [self-hosted, windows, x64]
+  build:
+
+    runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 18
+    - name: Checkout Code
+      uses: actions/checkout@v4
 
-      - name: Check Node Version
-        run: node -v
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20
 
-      - name: Install Dependencies
-        run: npm install
+    - name: Install Dependencies
+      run: npm install
 
-      - name: Build App
-        run: npm run build
+    - name: Build Application
+      run: npm run build
